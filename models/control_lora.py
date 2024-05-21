@@ -587,6 +587,78 @@ class ControlLoRAModel(ControlNetModel):
         self.vae = vae
 
     @classmethod
+    def from_controlnet(
+        cls,
+        unet: ControlNetModel,
+        conditioning_channels: int = 3,
+        controlnet_conditioning_channel_order: str = "rgb",
+        conditioning_embedding_out_channels: Optional[Tuple[int]] = (16, 32, 96, 256),
+        lora_linear_rank: int = 4,
+        lora_conv2d_rank: int = 0,
+        use_conditioning_latent: bool = False,
+        use_same_level_conditioning_latent: bool = False,
+        use_dora: bool = False,
+    ):
+        r"""
+        Instantiate a [`ControlNetModel`] from [`UNet2DConditionModel`].
+
+        Parameters:
+            unet (`UNet2DConditionModel`):
+                The UNet model weights to copy to the [`ControlNetModel`]. All configuration options are also copied
+                where applicable.
+        """
+        transformer_layers_per_block = (
+            unet.config.transformer_layers_per_block if "transformer_layers_per_block" in unet.config else 1
+        )
+        encoder_hid_dim = unet.config.encoder_hid_dim if "encoder_hid_dim" in unet.config else None
+        encoder_hid_dim_type = unet.config.encoder_hid_dim_type if "encoder_hid_dim_type" in unet.config else None
+        addition_embed_type = unet.config.addition_embed_type if "addition_embed_type" in unet.config else None
+        addition_time_embed_dim = (
+            unet.config.addition_time_embed_dim if "addition_time_embed_dim" in unet.config else None
+        )
+
+        controllora: ControlLoRAModel = cls(
+            conditioning_channels=conditioning_channels,
+            encoder_hid_dim=encoder_hid_dim,
+            encoder_hid_dim_type=encoder_hid_dim_type,
+            addition_embed_type=addition_embed_type,
+            addition_time_embed_dim=addition_time_embed_dim,
+            transformer_layers_per_block=transformer_layers_per_block,
+            in_channels=unet.config.in_channels,
+            flip_sin_to_cos=unet.config.flip_sin_to_cos,
+            freq_shift=unet.config.freq_shift,
+            down_block_types=unet.config.down_block_types,
+            only_cross_attention=unet.config.only_cross_attention,
+            block_out_channels=unet.config.block_out_channels,
+            layers_per_block=unet.config.layers_per_block,
+            downsample_padding=unet.config.downsample_padding,
+            mid_block_scale_factor=unet.config.mid_block_scale_factor,
+            act_fn=unet.config.act_fn,
+            norm_num_groups=unet.config.norm_num_groups,
+            norm_eps=unet.config.norm_eps,
+            cross_attention_dim=unet.config.cross_attention_dim,
+            attention_head_dim=unet.config.attention_head_dim,
+            num_attention_heads=unet.config.num_attention_heads,
+            use_linear_projection=unet.config.use_linear_projection,
+            class_embed_type=unet.config.class_embed_type,
+            num_class_embeds=unet.config.num_class_embeds,
+            upcast_attention=unet.config.upcast_attention,
+            resnet_time_scale_shift=unet.config.resnet_time_scale_shift,
+            projection_class_embeddings_input_dim=unet.config.projection_class_embeddings_input_dim,
+            controlnet_conditioning_channel_order=controlnet_conditioning_channel_order,
+            conditioning_embedding_out_channels=conditioning_embedding_out_channels,
+            lora_linear_rank=lora_linear_rank,
+            lora_conv2d_rank=lora_conv2d_rank,
+            use_conditioning_latent=use_conditioning_latent,
+            use_same_level_conditioning_latent=use_same_level_conditioning_latent,
+            use_dora=use_dora,
+        )
+
+        controllora.tie_weights(unet)
+
+        return controllora
+
+    @classmethod
     def from_unet(
         cls,
         unet: UNet2DConditionModel,

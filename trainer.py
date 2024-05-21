@@ -42,6 +42,7 @@ from diffusers import (
 from diffusers.optimization import get_scheduler
 from diffusers.utils import check_min_version, is_wandb_available
 from diffusers.utils.import_utils import is_xformers_available
+from diffusers.models.controlnet import ControlNetModel
 
 import utils
 from custom_datasets import CustomDataset
@@ -292,6 +293,12 @@ def parse_args(input_args=None):
         default=None,
         # required=True,
         help="Path to pretrained model or model identifier from huggingface.co/models.",
+    )
+    parser.add_argument(
+        "--pretrained_controlnet_name_or_path",
+        type=str,
+        default=None,
+        help="Path to pretrained model or model identifier from huggingface.co/models."
     )
     parser.add_argument(
         "--control_lora_model_name_or_path",
@@ -886,8 +893,22 @@ def main(args):
         logger.info("Loading existing control-lora weights")
         control_lora = ControlLoRAModel.from_pretrained(args.control_lora_model_name_or_path, cache_dir=args.cache_dir)
         control_lora.tie_weights(unet)
+    elif args.pretrained_controlnet_name_or_path:
+        logger.info("Initializing control-lora weights from base controlnet")
+        control_unet = ControlNetModel.from_pretrained(
+            args.pretrained_controlnet_name_or_path, cache_dir=args.cache_dir
+        )
+        control_lora = ControlLoRAModel.from_unet(
+            control_unet,
+            lora_linear_rank=args.control_lora_linear_rank, 
+            lora_conv2d_rank=args.control_lora_conv2d_rank,
+            use_conditioning_latent=args.use_conditioning_latent,
+            use_same_level_conditioning_latent=args.use_same_level_conditioning_latent,
+            use_dora=args.use_dora,
+        )
     else:
         logger.info("Initializing control-lora weights from unet")
+        
         control_lora = ControlLoRAModel.from_unet(
             unet, 
             lora_linear_rank=args.control_lora_linear_rank, 
